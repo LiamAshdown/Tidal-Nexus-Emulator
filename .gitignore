@@ -1,0 +1,6 @@
+Editor
+*.cs.meta
+*.meta
+*.asset
+*.json
+*.asmdef
