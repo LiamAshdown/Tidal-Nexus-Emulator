@@ -15,8 +15,33 @@ namespace TidalNexus.StandaloneServer.Services
 
         private const int Listed = 25;
 
+        public int DropUncompletable(Account account)
+        {
+            if (account == null || account.missions.Count == 0)
+            {
+                return 0;
+            }
+
+            int removed = account.missions.RemoveAll(active =>
+            {
+                MissionData mission = MissionCatalogue.ById(active.templateId);
+                return mission != null && !MissionCatalogue.IsCompletable(mission);
+            });
+
+            if (removed > 0)
+            {
+                AccountStore.MarkDirty(account);
+                ServerLog.Warn($"released {removed} held mission(s) from {account.nickname} "
+                    + "that no server hook can advance");
+            }
+
+            return removed;
+        }
+
         public List<MissionData> Offers(Account account)
         {
+            DropUncompletable(account);
+
             var held = new HashSet<int>();
 
             if (account != null)
@@ -63,6 +88,8 @@ namespace TidalNexus.StandaloneServer.Services
                 return false;
             }
 
+            DropUncompletable(account);
+
             if (account.missions.Count >= MaxActive)
             {
                 limitReached = true;
@@ -73,6 +100,14 @@ namespace TidalNexus.StandaloneServer.Services
             if (mission == null)
             {
                 ServerLog.Warn($"accept for unknown mission {missionIndex}");
+                return false;
+            }
+
+            if (!MissionCatalogue.IsCompletable(mission))
+            {
+                ServerLog.Warn(
+                    $"{account.nickname} tried to accept mission {mission.index} " +
+                    $"\"{mission.missionName}\" - no server hook advances its objectives");
                 return false;
             }
 

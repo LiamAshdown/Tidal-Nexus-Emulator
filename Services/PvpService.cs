@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Fusion;
+using TidalNexus.StandaloneServer.Core;
 using TidalNexus.StandaloneServer.Data;
 using UnityEngine;
 
@@ -512,5 +513,109 @@ namespace TidalNexus.StandaloneServer.Services
             }
         }
 
+        public readonly struct Standing
+        {
+            public Standing(int position, int population)
+            {
+                Position = position;
+                Population = population;
+            }
+
+            public int Position { get; }
+
+            public int Population { get; }
+
+            public float Percentage => BoardPosition.AsPercentage(Position, Population);
+        }
+
+        public const int NoArenaRanking = -1;
+
+        private const float CensusInterval = 1f;
+
+        private static readonly Comparison<long> Descending = (x, y) => y.CompareTo(x);
+
+        private readonly Dictionary<int, List<long>> _weeklyFameByFaction =
+            new Dictionary<int, List<long>>();
+
+        private readonly List<long> _weeklyArenaRatings = new List<long>();
+
+        private float _censusTakenAt = float.NegativeInfinity;
+
+        public Standing FameStandingOf(Account account)
+        {
+            if (account == null)
+            {
+                return default;
+            }
+
+            TakeCensus();
+
+            _weeklyFameByFaction.TryGetValue(account.faction, out List<long> faction);
+
+            return new Standing(
+                BoardPosition.Of(faction, account.weeklyFame),
+                faction == null ? 0 : faction.Count);
+        }
+
+        public int ArenaRankingOf(Account account)
+        {
+            if (account == null || account.weeklyArena <= 0)
+            {
+                return NoArenaRanking;
+            }
+
+            TakeCensus();
+
+            return BoardPosition.Of(_weeklyArenaRatings, account.weeklyArena);
+        }
+
+        private void TakeCensus()
+        {
+            float now = Time.realtimeSinceStartup;
+            if (now - _censusTakenAt < CensusInterval)
+            {
+                return;
+            }
+
+            _censusTakenAt = now;
+
+            foreach (List<long> fame in _weeklyFameByFaction.Values)
+            {
+                fame.Clear();
+            }
+
+            _weeklyArenaRatings.Clear();
+
+            foreach (Account a in AccountStore.All)
+            {
+                if (a == null)
+                {
+                    continue;
+                }
+
+                if (a.weeklyFame > 0)
+                {
+                    if (!_weeklyFameByFaction.TryGetValue(a.faction, out List<long> fame))
+                    {
+                        fame = new List<long>();
+                        _weeklyFameByFaction[a.faction] = fame;
+                    }
+
+                    fame.Add(a.weeklyFame);
+                }
+
+                if (a.weeklyArena > 0)
+                {
+                    _weeklyArenaRatings.Add(a.weeklyArena);
+                }
+            }
+
+            foreach (List<long> fame in _weeklyFameByFaction.Values)
+            {
+                fame.Sort(Descending);
+            }
+
+            _weeklyArenaRatings.Sort(Descending);
+        }
     }
 }

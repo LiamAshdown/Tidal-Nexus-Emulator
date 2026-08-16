@@ -59,6 +59,8 @@ namespace TidalNexus.StandaloneServer.Data
 
         public int lastFamePosition;
         public int lastFameBracket;
+        public long lastWeeklyFame;
+        public long lastWeeklyKills;
 
         public int hull = 4300;
         public int hullMax = 4300;

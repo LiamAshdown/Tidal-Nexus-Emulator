@@ -15,6 +15,50 @@ namespace TidalNexus.StandaloneServer.Services
         private static List<MissionData> _all;
         private static Dictionary<int, MissionData> _byIndex;
 
+        private static readonly HashSet<MissionObjectiveType> ObjectiveTypesWithHooks =
+            new HashSet<MissionObjectiveType>
+            {
+                MissionObjectiveType.NpcKill,
+                MissionObjectiveType.PlayerKill,
+                MissionObjectiveType.Collection,
+                MissionObjectiveType.MaterialSell,
+                MissionObjectiveType.MaterialBuy,
+                MissionObjectiveType.BeaconWin,
+                MissionObjectiveType.BeaconJoin,
+                MissionObjectiveType.BeaconCapture,
+                MissionObjectiveType.KrakenKill,
+                MissionObjectiveType.FactionKill,
+                MissionObjectiveType.DestroyCombat,
+                MissionObjectiveType.DestroyRecon,
+                MissionObjectiveType.DestroyTank,
+                MissionObjectiveType.DestroyTrade,
+                MissionObjectiveType.BzKill,
+                MissionObjectiveType.BeaconKill,
+            };
+
+        public static bool IsCompletable(MissionData mission)
+        {
+            if (mission == null)
+            {
+                return false;
+            }
+
+            if (mission.objectives == null || mission.objectives.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (MissionObjective objective in mission.objectives)
+            {
+                if (objective == null || !ObjectiveTypesWithHooks.Contains(objective.type))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         public static MissionDataManager Manager
         {
             get
@@ -70,10 +114,20 @@ namespace TidalNexus.StandaloneServer.Services
                     _byIndex[mission.index] = mission;
                 }
 
+                int unofferable = _all.Count(m => !IsCompletable(m));
+
                 ServerLog.Info($"mission catalogue: {_all.Count} missions, "
                     + $"{_all.Count(m => m.missionType == MissionType.PvpTask)} pvp, "
                     + $"{_all.Count(TradeShaped)} trade-shaped, "
                     + $"levels {_all.Min(m => m.missionLevel)}..{_all.Max(m => m.missionLevel)}");
+
+                if (unofferable > 0)
+                {
+                    ServerLog.Warn($"{unofferable} missions carry an objective type with no "
+                        + "server hook and will not be offered: "
+                        + string.Join(", ", _all.Where(m => !IsCompletable(m))
+                            .Select(m => $"{m.index} \"{m.missionName}\"")));
+                }
 
                 return _all;
             }
@@ -96,7 +150,7 @@ namespace TidalNexus.StandaloneServer.Services
             int level = account?.level ?? 1;
 
             List<MissionData> unlocked = All
-                .Where(m => IsUnlocked(m, account) && !IsCompleted(m, account))
+                .Where(m => IsCompletable(m) && IsUnlocked(m, account) && !IsCompleted(m, account))
                 .OrderBy(m => Math.Abs(level - m.missionLevel))
                 .ThenBy(m => m.index)
                 .ToList();
@@ -150,8 +204,8 @@ namespace TidalNexus.StandaloneServer.Services
 
             foreach (MissionData mission in All)
             {
-                if (!matches(mission) || !IsUnlocked(mission, account) ||
-                    IsCompleted(mission, account))
+                if (!matches(mission) || !IsCompletable(mission) ||
+                    !IsUnlocked(mission, account) || IsCompleted(mission, account))
                 {
                     continue;
                 }

@@ -241,9 +241,43 @@ namespace TidalNexus.StandaloneServer.Services
             }
         }
 
+        private static GameObject _statsPlaceholder;
+
+        private static GameObject StatsPlaceholder()
+        {
+            if (_statsPlaceholder == null)
+            {
+                _statsPlaceholder = new GameObject("event stats (server placeholder)");
+                UnityEngine.Object.DontDestroyOnLoad(_statsPlaceholder);
+            }
+
+            return _statsPlaceholder;
+        }
+
+        private static void GiveClientOnlyStartSomethingToHold(NetworkObject spawned)
+        {
+            if (spawned == null)
+            {
+                return;
+            }
+
+            var kraken = spawned.GetComponentInChildren<EventKraken>();
+            if (kraken != null && kraken.stats == null)
+            {
+                kraken.stats = StatsPlaceholder();
+            }
+
+            var beacon = spawned.GetComponentInChildren<EventBZBeacon>();
+            if (beacon != null && beacon.stats == null)
+            {
+                beacon.stats = StatsPlaceholder();
+            }
+        }
+
         private void OnSpawned(int token, EventMode mode, bool scheduled, Vector3 where,
             NetworkObject spawned)
         {
+            GiveClientOnlyStartSomethingToHold(spawned);
 
             if (token != _spawnToken)
             {

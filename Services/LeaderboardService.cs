@@ -281,10 +281,11 @@ namespace TidalNexus.StandaloneServer.Services
             {
                 List<Account> ranked = kv.Value.FindAll(a => a.weeklyFame > 0);
                 ranked.Sort((x, y) => y.weeklyFame.CompareTo(x.weeklyFame));
+                List<long> fame = ranked.ConvertAll(a => a.weeklyFame);
 
                 foreach (Account a in kv.Value)
                 {
-                    int position = ranked.IndexOf(a) + 1;
+                    int position = BoardPosition.Of(fame, a.weeklyFame);
                     int bracket = PrestigeRanks.BracketFor(
                         position, ranked.Count, PrestigeBrackets.PercentilesPerMille);
 
@@ -292,6 +293,8 @@ namespace TidalNexus.StandaloneServer.Services
                     a.prestige = PrestigeRanks.AfterWeeklyReset(a.prestige, bracket);
                     a.lastFamePosition = position;
                     a.lastFameBracket = bracket;
+                    a.lastWeeklyFame = a.weeklyFame;
+                    a.lastWeeklyKills = a.weeklyKills;
 
                     if (a.prestige != before)
                     {

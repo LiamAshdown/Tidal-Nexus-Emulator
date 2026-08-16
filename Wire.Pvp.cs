@@ -13,14 +13,22 @@ namespace TidalNexus.StandaloneServer
     {
         public static void SendPrestige(PlayerRef player, Account account)
         {
+            PvpService.Standing fame =
+                ServerHub.Pvp?.FameStandingOf(account) ?? default;
+
             ReliableChannel.SendJson(player, Enums.ReliableData.PvPData,
                 new UIPrestige.PrestigeData
                 {
                     prestige = account.prestige,
                     kills = (int)account.weeklyKills,
+                    famePosition = fame.Position,
+                    famePercentage = fame.Percentage,
+                    lastFamePosition = account.lastFamePosition,
+                    lastFameBracket = account.lastFameBracket,
                     lifetimeKills = (int)account.lifetimeKills,
                     lifetimeFame = (int)account.lifetimeFame,
-                    lastFame = (int)account.weeklyFame,
+                    lastFame = (int)Math.Min(account.lastWeeklyFame, int.MaxValue),
+                    lastKills = (int)Math.Min(account.lastWeeklyKills, int.MaxValue),
                 });
         }
 
@@ -30,7 +38,8 @@ namespace TidalNexus.StandaloneServer
                 new UIArena.ArenaData
                 {
                     rating = (int)account.weeklyArena,
-                    ranking = 0,
+                    ranking = ServerHub.Pvp?.ArenaRankingOf(account)
+                        ?? PvpService.NoArenaRanking,
                 });
         }
     }

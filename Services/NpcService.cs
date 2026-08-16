@@ -355,8 +355,18 @@ namespace TidalNexus.StandaloneServer.Services
 
         private static NPCData NamedNpc(string name)
         {
-            List<NPCData> catalogue = GameData.Data?.npcs;
-            if (catalogue == null || string.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty(name))
+            {
+                return null;
+            }
+
+            return InCatalogue(GameData.Data?.npcs, name)
+                ?? InCatalogue(GameData.Rates?.npcs, name);
+        }
+
+        private static NPCData InCatalogue(List<NPCData> catalogue, string name)
+        {
+            if (catalogue == null)
             {
                 return null;
             }

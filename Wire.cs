@@ -18,6 +18,8 @@ namespace TidalNexus.StandaloneServer
                 return;
             }
 
+            ServerHub.Missions?.DropUncompletable(account);
+
             SendCargo(player, account);
             SendTitles(player, account);
             SendDesigns(player, account);
