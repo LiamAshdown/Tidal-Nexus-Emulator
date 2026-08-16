@@ -4,6 +4,9 @@ This is an emulator built for [Tidal Nexus Online](https://tidalnexusonline.com/
 
 This project is for _educational use_ and only provides the network code - you will need the Unity Client to run it.
 
+![The retail client connected to the emulator](screenshots/image.png)
+_The shipped Steam client, version 1.0.4, connected to the emulator._
+
 ## How did you emulate this?
 
 This was made possible by using the following tools:
@@ -63,6 +66,15 @@ This is where Claude is extremely powerful - with its multiple agents, it ran an
 
 After a few hours of letting the agents diagnose the problems and implement the solutions, I was able to get past the authentication screen and into the in-game screen.
 
+![Faction selection](screenshots/faction.png)
+_Character creation - the three factions and their starting submarines._
+
 From there, Claude was on fire, developing every feature the sun laid upon. I did steer it sometimes in terms of code layout and design patterns.
+
+![Docked at a station](screenshots/docking.png)
+_Docked at Nixalon S-1, with repairing, the merchant, station trading and designs all served by the emulator._
+
+![Fighting an NPC](screenshots/attacking.png)
+_Combat against an NPC, with the target list, mission tracker and chat all live._
 
 What this has taught me is that LLMs have completely changed the game. What would have taken me 6+ months was achieved in under _2 days_.
