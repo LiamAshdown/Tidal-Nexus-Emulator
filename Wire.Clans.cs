@@ -28,6 +28,12 @@ namespace TidalNexus.StandaloneServer
             ReliableChannel.SendJson(player, Enums.ReliableData.ClanData, ClanDataFor(clan));
         }
 
+        public const int NoBoardPlacing = -1;
+
+        private const string LastSeenFormat = "yyyy-MM-dd HH:mm:ss.ffffff";
+
+        private const string ClanWarEndFormat = "yyyy-MM-dd HH:mm:ss";
+
         public static UIClans.ClanData ClanDataFor(Clan clan)
         {
             var data = new UIClans.ClanData
@@ -41,12 +47,25 @@ namespace TidalNexus.StandaloneServer
                 totalKills = (int)clan.lifetimeKills,
                 weeklyKills = (int)clan.weeklyKills,
                 factionChange = clan.factionChangeVote,
+                fameRank = NoBoardPlacing,
+                totalFameRank = NoBoardPlacing,
+                killRank = NoBoardPlacing,
+                totalKillRank = NoBoardPlacing,
+                prestigeRank = NoBoardPlacing,
+                achievementRank = NoBoardPlacing,
                 members = new List<UIClans.ClanMember>(),
             };
+
+            long achievementPoints = 0;
 
             foreach (Data.ClanMember member in clan.members)
             {
                 Account a = AccountStore.Find(member.accountId);
+
+                if (a != null)
+                {
+                    achievementPoints += ServerHub.Achievements?.PointsOf(a) ?? 0;
+                }
 
                 data.members.Add(new UIClans.ClanMember
                 {
@@ -62,15 +81,25 @@ namespace TidalNexus.StandaloneServer
                     kills = a != null ? (int)a.weeklyKills : 0,
                     totalkills = a != null ? (int)a.lifetimeKills : 0,
                     prestige = a?.prestige ?? 0,
-                    lastOnlineString = a != null
-                        ? DateTimeOffset.FromUnixTimeSeconds(a.lastSeenUnix).UtcDateTime
-                            .ToString("yyyy-MM-dd HH:mm:ss",
-                                System.Globalization.CultureInfo.InvariantCulture)
-                        : string.Empty,
+                    lastOnlineString = LastSeenStamp(a),
                 });
             }
 
+            data.totalAchievements = (int)Math.Min(achievementPoints, int.MaxValue);
+
             return data;
+        }
+
+        private static string LastSeenStamp(Account account)
+        {
+            if (account == null || account.lastSeenUnix <= 0)
+            {
+                return string.Empty;
+            }
+
+            return DateTimeOffset.FromUnixTimeSeconds(account.lastSeenUnix).UtcDateTime
+                .ToString(LastSeenFormat,
+                    System.Globalization.CultureInfo.InvariantCulture);
         }
 
         public static string ClientAccountId(string accountId)
@@ -126,6 +155,11 @@ namespace TidalNexus.StandaloneServer
             ReliableChannel.SendJson(player, Enums.ReliableData.ClanSearchData, search);
         }
 
+        public static string ClanWarNeverEnds =>
+            DateTimeOffset.FromUnixTimeSeconds(Account.PermanentBan).UtcDateTime
+                .ToString(ClanWarEndFormat,
+                    System.Globalization.CultureInfo.InvariantCulture);
+
         public static void SendClanWars(PlayerRef player, Account account)
         {
             var database = new Enums.ClanWarDatabase { clanWarList = new List<Enums.ClanWar>() };
@@ -133,6 +167,8 @@ namespace TidalNexus.StandaloneServer
             Clan own = AccountStore.FindClan(account.clanTag);
             if (own?.wars != null)
             {
+                string endsAt = ClanWarNeverEnds;
+
                 foreach (string enemyTag in own.wars)
                 {
                     Clan enemy = AccountStore.FindClan(enemyTag);
@@ -147,7 +183,7 @@ namespace TidalNexus.StandaloneServer
                         clan2point = enemy != null
                             ? (int)Math.Min(enemy.weeklyKills, int.MaxValue)
                             : 0,
-                        timer = string.Empty,
+                        timer = endsAt,
                     });
                 }
             }
