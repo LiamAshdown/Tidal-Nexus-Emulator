@@ -239,6 +239,11 @@ namespace TidalNexus.StandaloneServer.Services
                     continue;
                 }
 
+                if (!LootOwnership.OwnedBy(obj.Id, account.id))
+                {
+                    continue;
+                }
+
                 if (ServerHub.Economy.Collect(account, obj.Id, out _, out bool full))
                 {
                     Wire.SendCargo(player, account);

@@ -649,6 +649,30 @@ namespace TidalNexus.StandaloneServer.Services
 
         private float _nextRegen;
 
+        private bool InCombat(PlayerSession session)
+        {
+            if (session.Peek<Engagement>()?.Target != null)
+            {
+                return true;
+            }
+
+            NetworkObject self = WorldLookup.ObjectOf(session.Player);
+            if (self == null)
+            {
+                return false;
+            }
+
+            foreach (KeyValuePair<AttackerFlag, float> flag in _attackerExpiry)
+            {
+                if (flag.Key.Victim == self.Id && _clock < flag.Value)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private void Regenerate()
         {
             if (_clock < _nextRegen)
@@ -668,6 +692,11 @@ namespace TidalNexus.StandaloneServer.Services
                 Health health = WorldLookup.HealthOf(session.Player);
 
                 if (account == null || !WorldLookup.IsAlive(health))
+                {
+                    continue;
+                }
+
+                if (InCombat(session))
                 {
                     continue;
                 }

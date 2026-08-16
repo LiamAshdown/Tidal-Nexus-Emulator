@@ -56,6 +56,8 @@ namespace TidalNexus.StandaloneServer
                     collectable.materials = npc.data.GetLoot();
                 }
 
+                LootOwnership.Claim(spawned.Id, TopAttacker(npc));
+
                 int units = 0;
                 if (collectable != null && collectable.materials != null)
                 {
@@ -75,6 +77,38 @@ namespace TidalNexus.StandaloneServer
             {
                 ServerLog.Warn($"could not drop loot: {ex.Message}");
             }
+        }
+
+        private static string TopAttacker(NPCBehaviour npc)
+        {
+            if (npc == null || npc.attackers == null)
+            {
+                return null;
+            }
+
+            Player best = null;
+            int bestDamage = 0;
+
+            foreach (NPCBehaviour.Attackers entry in npc.attackers)
+            {
+                if (entry?.player == null || entry.damage <= bestDamage)
+                {
+                    continue;
+                }
+
+                best = entry.player;
+                bestDamage = entry.damage;
+            }
+
+            if (best == null)
+            {
+                return null;
+            }
+
+            PlayerRef who = Services.CombatService.FindOwner(best.Object);
+            Data.Account account = ServerHub.AccountFor(who);
+
+            return account?.id;
         }
 
         private static int IndexOf(NPCData data)

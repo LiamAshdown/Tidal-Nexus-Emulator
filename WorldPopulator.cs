@@ -178,12 +178,19 @@ namespace TidalNexus.StandaloneServer
 
         private const float OreSpread = 90f;
 
+        private const float OrePadding = 12f;
+
         private static void PopulateOre(Vector3[] sectors, ProjectBindings bindings)
         {
             OreCatalogue catalogue = OreCatalogue.Load();
             if (catalogue == null || catalogue.prefabs == null || catalogue.prefabs.Length == 0)
             {
                 ServerLog.Warn("no ore catalogue - the world will have nothing to mine");
+                return;
+            }
+
+            if (PopulateAuthoredOre(catalogue))
+            {
                 return;
             }
 
@@ -235,6 +242,113 @@ namespace TidalNexus.StandaloneServer
                     $"ore: only {spawned}/{wanted} nodes spawned - check the collectable " +
                     "prefabs are in Fusion's NetworkPrefabTable");
             }
+        }
+
+        private static bool PopulateAuthoredOre(OreCatalogue catalogue)
+        {
+            Area[] all = Object.FindObjectsByType<Area>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+            if (all == null || all.Length == 0)
+            {
+                return false;
+            }
+
+            int placed = 0;
+            int filled = 0;
+            int sectors = 0;
+
+            foreach (Area area in all)
+            {
+                if (area == null)
+                {
+                    continue;
+                }
+
+                sectors++;
+
+                if (area.collectables != null && area.collectables.Count > 0)
+                {
+                    foreach (AreaCollectable node in area.collectables)
+                    {
+                        if (node == null)
+                        {
+                            continue;
+                        }
+
+                        if (SpawnOre(catalogue, node.transform.position,
+                                node.collectable, node.amount))
+                        {
+                            placed++;
+                        }
+                    }
+
+                    continue;
+                }
+
+                if (area.spline == null)
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < OrePerSector; i++)
+                {
+                    Vector3 where = area.GetRandomPosition(
+                        area.areaIndex * 1000 + i, OrePadding);
+
+                    if (SpawnOre(catalogue, where, null, 0))
+                    {
+                        filled++;
+                    }
+                }
+            }
+
+            if (placed == 0 && filled == 0)
+            {
+                return false;
+            }
+
+            ServerLog.Info(
+                $"ore populated: {placed} authored nodes and {filled} sampled " +
+                $"across {sectors} sectors");
+
+            return true;
+        }
+
+        private static bool SpawnOre(
+            OreCatalogue catalogue, Vector3 where, CollectableMaterialData what, int amount)
+        {
+            GameObject prefab = catalogue.Any();
+            if (prefab == null)
+            {
+                return false;
+            }
+
+            NetworkObject spawned = CollectableSpawn.At(prefab, where);
+            if (spawned == null)
+            {
+                return false;
+            }
+
+            if (what == null || amount <= 0)
+            {
+                return true;
+            }
+
+            var collectable = spawned.GetComponent<CollectableObject>();
+            if (collectable == null)
+            {
+                return true;
+            }
+
+            collectable.materials.Clear();
+            collectable.materials.Add(new CollectableMaterial
+            {
+                data = what,
+                amount = amount,
+            });
+
+            return true;
         }
 
         private static Vector3[] DiscoverSectorCentres()

@@ -377,6 +377,22 @@ namespace TidalNexus.StandaloneServer.Services
         private static float CollectRange =>
             Math.Max(ServerHub.Config?.AutoCollectRange ?? 15f, 15f);
 
+        public static bool MayTake(Account taker, Fusion.NetworkId id)
+        {
+            if (!LootOwnership.TryGetOwner(id, out string ownerId) || ownerId == taker.id)
+            {
+                return true;
+            }
+
+            Account owner = AccountStore.Find(ownerId);
+            if (owner == null)
+            {
+                return true;
+            }
+
+            return taker.faction == 0 || taker.faction != owner.faction;
+        }
+
         public bool Collect(Account account, Fusion.NetworkId id, out int unitsTaken, out bool holdFull)
         {
             unitsTaken = 0;
@@ -398,6 +414,13 @@ namespace TidalNexus.StandaloneServer.Services
             if (collectable == null)
             {
                 ServerLog.Warn($"collect on a non-collectable object {id}");
+                return false;
+            }
+
+            if (!MayTake(account, id))
+            {
+                ServerLog.Info(
+                    $"{account.nickname} tried to collect {id}, which belongs to an ally");
                 return false;
             }
 
@@ -473,6 +496,8 @@ namespace TidalNexus.StandaloneServer.Services
 
             if (decision.ClearsTheWreck)
             {
+                LootOwnership.Release(id);
+
                 try
                 {
                     ServerHub.Runner.Despawn(obj);
