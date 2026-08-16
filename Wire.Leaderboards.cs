@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Fusion;
 using TidalNexus.StandaloneServer.Core;
-using TidalNexus.StandaloneServer.Data;
-using TidalNexus.StandaloneServer.Services;
 
 namespace TidalNexus.StandaloneServer
 {
@@ -62,15 +59,10 @@ namespace TidalNexus.StandaloneServer
 
         public static void SendBrackets(PlayerRef player)
         {
-            var population = new List<FameStanding>();
-
-            foreach (Account account in AccountStore.All)
+            IReadOnlyList<BracketCutoff> table = ServerHub.Leaderboards?.Brackets();
+            if (table == null)
             {
-                if (account != null)
-                {
-                    population.Add(new FameStanding(
-                        AccountService.CoreFaction(account.faction), account.weeklyFame));
-                }
+                return;
             }
 
             var data = new UIBrackets.BracketData
@@ -78,7 +70,7 @@ namespace TidalNexus.StandaloneServer
                 rows = new List<UIBrackets.BracketRow>(PrestigeBrackets.Rows),
             };
 
-            foreach (BracketCutoff cutoff in PrestigeBrackets.Table(population))
+            foreach (BracketCutoff cutoff in table)
             {
                 data.rows.Add(new UIBrackets.BracketRow
                 {

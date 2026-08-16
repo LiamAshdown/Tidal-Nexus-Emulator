@@ -57,6 +57,9 @@ namespace TidalNexus.StandaloneServer.Data
         public int honour;
         public int battlePoints;
 
+        public int lastFamePosition;
+        public int lastFameBracket;
+
         public int hull = 4300;
         public int hullMax = 4300;
         public int shield = 4300;

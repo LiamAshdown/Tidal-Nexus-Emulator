@@ -328,22 +328,6 @@ namespace TidalNexus.StandaloneServer.Services
             return targets;
         }
 
-        public static int TargetOf(MissionData mission)
-        {
-            if (mission?.objectives == null || mission.objectives.Count == 0)
-            {
-                return 1;
-            }
-
-            int total = 0;
-            foreach (MissionObjective objective in mission.objectives)
-            {
-                total += Mathf.Max(1, objective.amount);
-            }
-
-            return total;
-        }
-
         public static List<MissionReward> RewardsFor(MissionData mission, Account account)
         {
             if (mission == null)
@@ -365,44 +349,6 @@ namespace TidalNexus.StandaloneServer.Services
             };
 
             return faction ?? mission.rewards ?? new List<MissionReward>();
-        }
-
-        public static long CreditsOf(MissionData mission)
-        {
-            if (mission?.rewards == null)
-            {
-                return 0;
-            }
-
-            long total = 0;
-            foreach (MissionReward reward in mission.rewards)
-            {
-                if (reward.type == MissionRewardType.Credits)
-                {
-                    total += reward.amount;
-                }
-            }
-
-            return total;
-        }
-
-        public static long ExperienceOf(MissionData mission)
-        {
-            if (mission?.rewards == null)
-            {
-                return 0;
-            }
-
-            long total = 0;
-            foreach (MissionReward reward in mission.rewards)
-            {
-                if (reward.type == MissionRewardType.Experience)
-                {
-                    total += reward.amount;
-                }
-            }
-
-            return total;
         }
     }
 }

@@ -32,6 +32,18 @@ namespace TidalNexus.StandaloneServer
 
         private static readonly HashSet<string> Warned = new HashSet<string>();
 
+        private static bool OrdnanceIndexFits(Account acc, string what, int index, int catalogue)
+        {
+            if (index >= 0 && index <= catalogue)
+            {
+                return true;
+            }
+
+            ServerLog.Warn(
+                $"{acc.nickname} sent {what} index {index}; the catalogue holds {catalogue}");
+            return false;
+        }
+
         private static bool Session(RpcInfo info, out Account acc, out PlayerRef p)
         {
             p = info.Source;
@@ -296,6 +308,12 @@ namespace TidalNexus.StandaloneServer
         {
             if (!Session(info, out Account acc, out PlayerRef p)) { return; }
 
+            if (!OrdnanceIndexFits(acc, "ammo", index,
+                    GameData.Data?.weaponAmmoDatas?.Count ?? 0))
+            {
+                return;
+            }
+
             acc.ammoIndex = index;
             AccountStore.MarkDirty(acc);
         }
@@ -304,6 +322,12 @@ namespace TidalNexus.StandaloneServer
         {
             if (!Session(info, out Account acc, out PlayerRef p)) { return; }
 
+            if (!OrdnanceIndexFits(acc, "bomb", index,
+                    GameData.Data?.bombAmmoDatas?.Count ?? 0))
+            {
+                return;
+            }
+
             acc.bombIndex = index;
             AccountStore.MarkDirty(acc);
         }
@@ -311,6 +335,12 @@ namespace TidalNexus.StandaloneServer
         public static void RPC_ChangeDecoy(PlayerRPC self, int index, RpcInfo info)
         {
             if (!Session(info, out Account acc, out PlayerRef p)) { return; }
+
+            if (!OrdnanceIndexFits(acc, "decoy", index,
+                    GameData.Data?.decoyAmmoDatas?.Count ?? 0))
+            {
+                return;
+            }
 
             acc.decoyIndex = index;
             AccountStore.MarkDirty(acc);
@@ -341,6 +371,12 @@ namespace TidalNexus.StandaloneServer
         {
             if (!Session(info, out Account acc, out PlayerRef p)) { return; }
 
+            if (!OrdnanceIndexFits(acc, "mine", index,
+                    GameData.Data?.mineAmmoDatas?.Count ?? 0))
+            {
+                return;
+            }
+
             acc.mineIndex = index;
             AccountStore.MarkDirty(acc);
         }
@@ -364,6 +400,12 @@ namespace TidalNexus.StandaloneServer
         public static void RPC_ChangeTorpedo(PlayerRPC self, int index, RpcInfo info)
         {
             if (!Session(info, out Account acc, out PlayerRef p)) { return; }
+
+            if (!OrdnanceIndexFits(acc, "torpedo", index,
+                    GameData.Data?.torpedoAmmoDatas?.Count ?? 0))
+            {
+                return;
+            }
 
             acc.torpedoIndex = index;
             AccountStore.MarkDirty(acc);
@@ -714,7 +756,10 @@ namespace TidalNexus.StandaloneServer
 
             if (ServerHub.Events != null)
             {
-                Wire.SendBeaconReport(p, ServerHub.Events.ReportFor(EventService.Kind.Beacon));
+                Wire.SendBeaconReport(
+                    p,
+                    ServerHub.Events.ReportFor(EventService.Kind.Beacon),
+                    ServerHub.Events.BeaconWinner);
             }
         }
 
@@ -781,7 +826,12 @@ namespace TidalNexus.StandaloneServer
         {
             if (!Session(info, out Account acc, out PlayerRef p)) { return; }
 
-            ServerHub.Economy?.GrantFounderPack(acc);
+            if (ServerHub.Economy == null || !ServerHub.Economy.GrantFounderPack(acc))
+            {
+                ServerLog.Warn($"founder pack tier {tier} refused for {acc.nickname}");
+                return;
+            }
+
             ServerHub.Accounts?.PushState(p, acc);
             Wire.SendTitles(p, acc);
             self.RPC_PurchaseSuccess();
@@ -867,7 +917,12 @@ namespace TidalNexus.StandaloneServer
         {
             if (!Session(info, out Account acc, out PlayerRef p)) { return; }
 
-            ServerHub.Economy?.GrantVip(acc, 30);
+            if (ServerHub.Economy == null || !ServerHub.Economy.GrantVip(acc, 30))
+            {
+                ServerLog.Warn($"VIP refused for {acc.nickname}");
+                return;
+            }
+
             ServerHub.Accounts?.PushState(p, acc);
             self.RPC_PurchaseSuccess();
         }

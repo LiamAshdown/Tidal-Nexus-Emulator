@@ -531,7 +531,8 @@ namespace TidalNexus.StandaloneServer.Services
 
                 var deadNpc = victim != null ? victim.GetComponentInChildren<NPCBehaviour>() : null;
                 ServerHub.Missions?.OnKill(
-                    killerAccount, deadNpc != null ? deadNpc.data : null, victimAccount == null);
+                    killerAccount, deadNpc != null ? deadNpc.data : null, victimAccount == null,
+                    victimAccount);
 
                 if (victimAccount != null && !ReferenceEquals(killerAccount, victimAccount))
                 {

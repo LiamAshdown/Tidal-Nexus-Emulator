@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Fusion;
+using TidalNexus.StandaloneServer.Core;
 using TidalNexus.StandaloneServer.Data;
+using UnityEngine;
 
 namespace TidalNexus.StandaloneServer.Services
 {
@@ -25,17 +27,14 @@ namespace TidalNexus.StandaloneServer.Services
         public void SendPlayerBoard(
             PlayerRef player, Board board, Enums.ReliableData opcode, string search)
         {
-            Func<Account, long> value = board switch
+            Func<Account, long> value = PlayerValue(board);
+            if (value == null)
             {
-                Board.WeeklyFame => a => a.weeklyFame,
-                Board.WeeklyKills => a => a.weeklyKills,
-                Board.WeeklyArena => a => a.weeklyArena,
-                Board.LifetimeFame => a => a.lifetimeFame,
-                Board.LifetimeKills => a => a.lifetimeKills,
-                Board.LifetimeArena => a => a.lifetimeArena,
-                Board.Prestige => a => a.prestige,
-                _ => AchievementPoints,
-            };
+                RefusedBoard(board);
+                Wire.SendLeaderboard(
+                    player, opcode, Array.Empty<(string, long, int)>());
+                return;
+            }
 
             var rows = new List<(Account Account, long Value)>();
             foreach (Account a in AccountStore.All)
@@ -62,15 +61,15 @@ namespace TidalNexus.StandaloneServer.Services
         public void SendClanBoard(
             PlayerRef player, Board board, Enums.ReliableData opcode, string search)
         {
-            Func<Clan, long> value = board switch
+            Func<Clan, long> value = ClanValue(board);
+            if (value == null)
             {
-                Board.WeeklyFame => c => c.weeklyFame,
-                Board.WeeklyKills => c => c.weeklyKills,
-                Board.LifetimeKills => c => c.lifetimeKills,
-                Board.Prestige => TotalPrestige,
-                Board.Achievements => TotalAchievementPoints,
-                _ => c => c.lifetimeFame,
-            };
+                RefusedBoard(board);
+                Wire.SendClanLeaderboard(
+                    player, opcode,
+                    Array.Empty<(string, string, string, long, int, int)>());
+                return;
+            }
 
             var rows = new List<(Clan Clan, long Value)>();
             foreach (Clan c in AccountStore.AllClans)
@@ -96,6 +95,35 @@ namespace TidalNexus.StandaloneServer.Services
 
             Wire.SendClanLeaderboard(player, opcode, page);
         }
+
+        private static Func<Account, long> PlayerValue(Board board) =>
+            board switch
+            {
+                Board.WeeklyFame => a => a.weeklyFame,
+                Board.LifetimeFame => a => a.lifetimeFame,
+                Board.WeeklyKills => a => a.weeklyKills,
+                Board.LifetimeKills => a => a.lifetimeKills,
+                Board.WeeklyArena => a => a.weeklyArena,
+                Board.LifetimeArena => a => a.lifetimeArena,
+                Board.Prestige => a => a.prestige,
+                Board.Achievements => AchievementPoints,
+                _ => null,
+            };
+
+        private static Func<Clan, long> ClanValue(Board board) =>
+            board switch
+            {
+                Board.WeeklyFame => c => c.weeklyFame,
+                Board.LifetimeFame => c => c.lifetimeFame,
+                Board.WeeklyKills => c => c.weeklyKills,
+                Board.LifetimeKills => c => c.lifetimeKills,
+                Board.Prestige => TotalPrestige,
+                Board.Achievements => TotalAchievementPoints,
+                _ => null,
+            };
+
+        private static void RefusedBoard(Board board) =>
+            ServerLog.Warn($"no {board} standing exists to rank; answering with an empty board");
 
         private static long TotalPrestige(Clan clan)
         {
@@ -134,6 +162,35 @@ namespace TidalNexus.StandaloneServer.Services
             string.IsNullOrEmpty(search) ||
             (field != null &&
              field.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0);
+
+        private const float BracketRebuildInterval = 1f;
+
+        private IReadOnlyList<BracketCutoff> _brackets;
+        private float _bracketsBuiltAt;
+
+        public IReadOnlyList<BracketCutoff> Brackets()
+        {
+            float now = Time.realtimeSinceStartup;
+
+            if (_brackets != null && now - _bracketsBuiltAt < BracketRebuildInterval)
+            {
+                return _brackets;
+            }
+
+            var population = new List<FameStanding>();
+            foreach (Account a in AccountStore.All)
+            {
+                if (a != null)
+                {
+                    population.Add(new FameStanding(
+                        AccountService.CoreFaction(a.faction), a.weeklyFame));
+                }
+            }
+
+            _brackets = PrestigeBrackets.Table(population);
+            _bracketsBuiltAt = now;
+            return _brackets;
+        }
 
         private float _rolloverClock;
 
@@ -177,6 +234,8 @@ namespace TidalNexus.StandaloneServer.Services
 
         public void ResetWeekly()
         {
+            AwardPrestige();
+
             foreach (Account a in AccountStore.All)
             {
                 a.weeklyFame = 0;
@@ -190,8 +249,59 @@ namespace TidalNexus.StandaloneServer.Services
                 c.weeklyKills = 0;
             }
 
+            _brackets = null;
+
             AccountStore.SaveAll();
             ServerLog.Info("weekly leaderboards reset");
+        }
+
+        private static void AwardPrestige()
+        {
+            var byFaction = new Dictionary<int, List<Account>>();
+
+            foreach (Account a in AccountStore.All)
+            {
+                if (a == null)
+                {
+                    continue;
+                }
+
+                if (!byFaction.TryGetValue(a.faction, out List<Account> members))
+                {
+                    members = new List<Account>();
+                    byFaction[a.faction] = members;
+                }
+
+                members.Add(a);
+            }
+
+            int awarded = 0;
+
+            foreach (KeyValuePair<int, List<Account>> kv in byFaction)
+            {
+                List<Account> ranked = kv.Value.FindAll(a => a.weeklyFame > 0);
+                ranked.Sort((x, y) => y.weeklyFame.CompareTo(x.weeklyFame));
+
+                foreach (Account a in kv.Value)
+                {
+                    int position = ranked.IndexOf(a) + 1;
+                    int bracket = PrestigeRanks.BracketFor(
+                        position, ranked.Count, PrestigeBrackets.PercentilesPerMille);
+
+                    int before = a.prestige;
+                    a.prestige = PrestigeRanks.AfterWeeklyReset(a.prestige, bracket);
+                    a.lastFamePosition = position;
+                    a.lastFameBracket = bracket;
+
+                    if (a.prestige != before)
+                    {
+                        awarded++;
+                    }
+                }
+            }
+
+            ServerLog.Info($"prestige settled for {awarded} account(s) across "
+                + $"{byFaction.Count} faction(s)");
         }
     }
 }

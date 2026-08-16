@@ -28,9 +28,54 @@ namespace TidalNexus.StandaloneServer.Services
             public bool IsMine;
         }
 
+        private static float TorpedoRange =>
+            (GameData.Settings != null && GameData.Settings.torpedoDistance > 0f
+                ? GameData.Settings.torpedoDistance
+                : 10f) * 2f;
+
+        private static bool WithinTorpedoRange(PlayerRef player, NetworkObject target, string who)
+        {
+            NetworkObject shooter = WorldLookup.ObjectOf(player);
+            if (shooter == null)
+            {
+                return false;
+            }
+
+            Vector3 from = shooter.transform.position;
+            Vector3 to = target.transform.position;
+
+            if (Core.WeaponRange.InRange(from.x, from.y, from.z, to.x, to.y, to.z, TorpedoRange))
+            {
+                return true;
+            }
+
+            ServerLog.Warn(
+                $"{who} torpedoed a target {Vector3.Distance(from, to):F1} away; " +
+                $"the reach is {TorpedoRange:F0}");
+            return false;
+        }
+
         public bool DropTorpedo(PlayerRPC self, Account account, PlayerRef player, NetworkId targetId)
         {
             if (self == null || account == null || ServerHub.Runner == null)
+            {
+                return false;
+            }
+
+            NetworkObject target = ServerHub.Runner.FindObject(targetId);
+            if (target == null)
+            {
+                ServerLog.Warn($"torpedo at unknown target {targetId}");
+                return false;
+            }
+
+            if (ServerHub.Combat == null || !ServerHub.Combat.MayAttack(player, target))
+            {
+                ServerLog.Warn($"{account.nickname} torpedoed a target they may not attack");
+                return false;
+            }
+
+            if (!WithinTorpedoRange(player, target, account.nickname))
             {
                 return false;
             }
@@ -39,13 +84,6 @@ namespace TidalNexus.StandaloneServer.Services
             if (!TakeTorpedo(account, index))
             {
                 ServerLog.Info($"{account.nickname} fired torpedo {index} with none in stock");
-                return false;
-            }
-
-            NetworkObject target = ServerHub.Runner.FindObject(targetId);
-            if (target == null)
-            {
-                ServerLog.Warn($"torpedo at unknown target {targetId}");
                 return false;
             }
 

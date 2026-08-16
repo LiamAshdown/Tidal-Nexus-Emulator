@@ -40,6 +40,8 @@ namespace TidalNexus.StandaloneServer
 
         public string AllowList = string.Empty;
 
+        public string Admins = string.Empty;
+
         public static ServerConfig FromEnvironment(ServerConfig defaults = null)
         {
             var config = new ServerConfig();
@@ -85,6 +87,7 @@ namespace TidalNexus.StandaloneServer
                 ParseFloat(Env("TN_EVENTS", null), config.EventsEnabled ? 1f : 0f) > 0f;
             config.StartEvent = Env("TN_STARTEVENT", config.StartEvent);
             config.AllowList = Env("TN_ALLOWLIST", config.AllowList);
+            config.Admins = Env("TN_ADMINS", config.Admins);
 
             string[] args;
             try
@@ -180,6 +183,9 @@ namespace TidalNexus.StandaloneServer
                         break;
                     case "-allowlist":
                         config.AllowList = value ?? string.Empty;
+                        break;
+                    case "-admins":
+                        config.Admins = value ?? string.Empty;
                         break;
                 }
             }

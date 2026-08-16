@@ -16,9 +16,44 @@ namespace TidalNexus.StandaloneServer.Services
         public const int FactionAzularis = (int)Enums.Faction.Azularis;
         public const int FactionNone = (int)Enums.Faction.None;
 
+        private static void GrantConfiguredAdmin(Account account)
+        {
+            string list = ServerHub.Config?.Admins;
+            if (account == null || string.IsNullOrWhiteSpace(list))
+            {
+                return;
+            }
+
+            foreach (string entry in list.Split(','))
+            {
+                string id = entry.Trim();
+                if (id.Length == 0)
+                {
+                    continue;
+                }
+
+                bool matches =
+                    string.Equals(id, account.id, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals("steam-" + id, account.id, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(id, account.nickname, StringComparison.OrdinalIgnoreCase);
+
+                if (!matches || account.Role >= AdminService.RoleAdmin)
+                {
+                    continue;
+                }
+
+                account.Role = AdminService.RoleAdmin;
+                AccountStore.MarkDirty(account);
+                ServerLog.Info($"{account.nickname} [{account.id}] is an admin by configuration");
+                return;
+            }
+        }
+
         public Account Login(PlayerRef player, string presentedId, string presentedNickname)
         {
             Account account = AccountStore.GetOrCreate(presentedId, presentedNickname);
+
+            GrantConfiguredAdmin(account);
 
             if (account.banned)
             {

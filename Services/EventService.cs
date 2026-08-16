@@ -54,6 +54,13 @@ namespace TidalNexus.StandaloneServer.Services
 
         private Kind _scoresKind = Kind.None;
 
+        private Core.BeaconFaction _beaconWinner = Core.BeaconFaction.None;
+
+        internal void NoteBeaconWinner(Core.BeaconFaction winner) => _beaconWinner = winner;
+
+        public Core.BeaconFaction BeaconWinner =>
+            _scoresKind == Kind.Beacon ? _beaconWinner : Core.BeaconFaction.None;
+
         public sealed class Contribution
         {
             public string Name = string.Empty;
@@ -272,6 +279,7 @@ namespace TidalNexus.StandaloneServer.Services
             _timer = LeadInSeconds;
             _scores.Clear();
             _scoresKind = mode.Kind;
+            _beaconWinner = Core.BeaconFaction.None;
 
             mode.Bind(spawned);
             PublishTimer();

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TidalNexus.StandaloneServer.Core;
 using TidalNexus.StandaloneServer.Data;
 using UnityEngine;
 
@@ -61,20 +62,41 @@ namespace TidalNexus.StandaloneServer.Services
             account.shield = Math.Min(account.shield, account.shieldMax);
         }
 
-        public bool TryPrestige(Account account)
+        public int RankHeld(Account account)
         {
-            if (account == null || account.level < MaxLevel)
+            if (account == null)
             {
-                return false;
+                return PrestigeRanks.NoRank;
             }
 
-            account.prestige++;
-            account.level = 1;
-            account.experience = 0;
-            ApplyLevelStats(account);
-            AccountStore.MarkDirty(account);
-            ServerLog.Info($"{account.nickname} prestiged to {account.prestige}");
-            return true;
+            return PrestigeRanks.HighestRankMet(account.prestige, RequiredPrestige());
+        }
+
+        public PrestigeRankData Rank(Account account)
+        {
+            int held = RankHeld(account);
+            return held == PrestigeRanks.NoRank ? null : GameData.Settings.ranks[held];
+        }
+
+        private static IReadOnlyList<int> RequiredPrestige()
+        {
+            List<PrestigeRankData> ranks = GameData.Settings?.ranks;
+            if (ranks == null)
+            {
+                return null;
+            }
+
+            var required = new int[ranks.Count];
+            for (int i = 0; i < ranks.Count; i++)
+            {
+                PrestigeRankData rank = ranks[i];
+                required[i] = rank != null && rank.conditions != null &&
+                              rank.conditions.Count > 0 && rank.conditions[0] != null
+                    ? rank.conditions[0].amount
+                    : PrestigeRanks.Unreachable;
+            }
+
+            return required;
         }
 
         public long UpgradeCost(int currentPoints)
@@ -306,10 +328,24 @@ namespace TidalNexus.StandaloneServer.Services
             return removed;
         }
 
+        public const int NoTitle = -1;
+
         public bool TrySetTitle(Account account, int title)
         {
+            if (account == null)
+            {
+                return false;
+            }
 
-            if (title >= 0)
+            if (title == PrestigeRanks.WornAsTitleIndex)
+            {
+                if (RankHeld(account) == PrestigeRanks.NoRank)
+                {
+                    ServerLog.Info($"{account.nickname} holds no rank to wear");
+                    return false;
+                }
+            }
+            else if (title > PrestigeRanks.WornAsTitleIndex)
             {
                 TitleData data = TitleById(title);
                 if (data == null || !Unlocks.Meets(data, account))
@@ -317,6 +353,11 @@ namespace TidalNexus.StandaloneServer.Services
                     ServerLog.Info($"{account.nickname} cannot wear title {title}");
                     return false;
                 }
+            }
+            else if (title != NoTitle)
+            {
+                ServerLog.Info($"{account.nickname} asked for unnameable title {title}");
+                return false;
             }
 
             account.title = title;

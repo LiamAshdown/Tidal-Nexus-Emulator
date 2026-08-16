@@ -58,7 +58,7 @@ namespace TidalNexus.StandaloneServer.Services
 
         protected override void SendReport(PlayerRef player,
             List<EventService.Contribution> scores) =>
-            Wire.SendBeaconReport(player, scores);
+            Wire.SendBeaconReport(player, scores, WinningFaction());
 
         public override void PublishTimer(float timeLeft)
         {
@@ -177,19 +177,25 @@ namespace TidalNexus.StandaloneServer.Services
             NoteParticipation(killer);
         }
 
+        public override void Ending()
+        {
+            base.Ending();
+            Events.NoteBeaconWinner(WinningFaction());
+        }
+
         public override void Award(Dictionary<string, EventService.Contribution> scores)
         {
             base.Award(scores);
 
-            int winner = WinningFaction();
-            if (winner < 0)
+            BeaconFaction winner = WinningFaction();
+            if (winner == BeaconFaction.None)
             {
                 return;
             }
 
             foreach (KeyValuePair<string, EventService.Contribution> kv in scores)
             {
-                if (kv.Value.Faction != winner)
+                if (kv.Value.Faction != (int)winner)
                 {
                     continue;
                 }
@@ -212,45 +218,23 @@ namespace TidalNexus.StandaloneServer.Services
             ServerHub.Missions?.OnBeacon(account, MissionObjectiveType.BeaconJoin);
         }
 
-        private int WinningFaction()
+        private BeaconFaction WinningFaction()
         {
             if (_view == null)
             {
-                return -1;
+                return BeaconFaction.None;
             }
-
-            float[] points;
 
             try
             {
-                points = new[]
-                {
-                    _view.nautilusPoints, _view.serranPoints, _view.azularisPoints,
-                };
+                return BeaconOutcome.Winner(
+                    _view.nautilusPoints, _view.serranPoints, _view.azularisPoints);
             }
             catch (Exception e)
             {
                 ServerLog.Warn($"could not read the {Kind} event's scores: {e.Message}");
-                return -1;
+                return BeaconFaction.None;
             }
-
-            int best = -1;
-            int tied = 0;
-
-            for (int i = 0; i < points.Length; i++)
-            {
-                if (best < 0 || points[i] > points[best])
-                {
-                    best = i;
-                    tied = 1;
-                }
-                else if (points[i] == points[best])
-                {
-                    tied++;
-                }
-            }
-
-            return best >= 0 && tied == 1 && points[best] > 0f ? best : -1;
         }
 
         private static BeaconFaction CoreFaction(Ownership ownership) =>

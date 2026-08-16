@@ -130,12 +130,24 @@ namespace TidalNexus.StandaloneServer.Services
             }
 
             ActiveMission active = account.missions.Find(m => m.templateId == missionIndex);
-            if (active == null || !IsSatisfied(active))
+            if (active == null)
             {
                 return false;
             }
 
             MissionData mission = MissionCatalogue.ById(missionIndex);
+
+            if (!IsSatisfied(active, mission))
+            {
+                if (active.complete)
+                {
+                    active.complete = false;
+                    Publish(account);
+                }
+
+                return false;
+            }
+
             account.missions.Remove(active);
 
             foreach (MissionReward reward in MissionCatalogue.RewardsFor(mission, account))
@@ -214,16 +226,58 @@ namespace TidalNexus.StandaloneServer.Services
             }
         }
 
-        public void OnKill(Account account, NPCData npc, bool wasNpc)
+        public void OnKill(Account account, NPCData npc, bool wasNpc, Account victim = null)
         {
             if (!wasNpc)
             {
                 Advance(account, MissionObjectiveType.PlayerKill, 1, _ => true);
+
+                if (victim != null && !ReferenceEquals(account, victim) &&
+                    FittedModuleObjective(victim) is MissionObjectiveType module)
+                {
+                    Advance(account, module, 1, _ => true);
+                }
+
                 return;
             }
 
             Advance(account, MissionObjectiveType.NpcKill, 1,
                 objective => Wants(objective.GetNPC(), npc));
+        }
+
+        private static MissionObjectiveType? FittedModuleObjective(Account victim)
+        {
+            List<ExtraData> catalogue = GameData.Data?.extraDatas;
+            if (victim?.equippedExtras == null || catalogue == null)
+            {
+                return null;
+            }
+
+            foreach (int index in victim.equippedExtras)
+            {
+                if (index < 0 || index >= catalogue.Count ||
+                    !(catalogue[index] is CoreModuleData fitted))
+                {
+                    continue;
+                }
+
+                switch (fitted.type)
+                {
+                    case ExtraData.ExtraType.CombatModule:
+                        return MissionObjectiveType.DestroyCombat;
+
+                    case ExtraData.ExtraType.ReconModule:
+                        return MissionObjectiveType.DestroyRecon;
+
+                    case ExtraData.ExtraType.TankModule:
+                        return MissionObjectiveType.DestroyTank;
+
+                    case ExtraData.ExtraType.TradeModule:
+                        return MissionObjectiveType.DestroyTrade;
+                }
+            }
+
+            return null;
         }
 
         public void OnFactionKill(Account account) =>
@@ -270,11 +324,18 @@ namespace TidalNexus.StandaloneServer.Services
             return wanted == null || wanted.name == material;
         }
 
-        private static bool IsSatisfied(ActiveMission active)
+        private static bool IsSatisfied(ActiveMission active, MissionData mission)
         {
+            if (mission?.objectives != null)
+            {
+                Resize(active, mission);
+            }
+
             for (int i = 0; i < active.target.Length; i++)
             {
-                if (active.progress[i] < active.target[i])
+                int done = i < active.progress.Length ? active.progress[i] : 0;
+
+                if (done < active.target[i])
                 {
                     return false;
                 }
@@ -322,11 +383,6 @@ namespace TidalNexus.StandaloneServer.Services
 
             foreach (ActiveMission active in account.missions)
             {
-                if (active.complete)
-                {
-                    continue;
-                }
-
                 MissionData mission = MissionCatalogue.ById(active.templateId);
                 if (mission?.objectives == null)
                 {
@@ -358,15 +414,18 @@ namespace TidalNexus.StandaloneServer.Services
                     continue;
                 }
 
-                active.complete = IsSatisfied(active);
+                active.complete = IsSatisfied(active, mission);
                 changed = true;
             }
 
-            if (!changed)
+            if (changed)
             {
-                return;
+                Publish(account);
             }
+        }
 
+        private static void Publish(Account account)
+        {
             AccountStore.MarkDirty(account);
 
             Fusion.PlayerRef p = ServerHub.RefFor(account);
