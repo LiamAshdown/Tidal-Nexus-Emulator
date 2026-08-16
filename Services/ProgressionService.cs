@@ -24,6 +24,13 @@ namespace TidalNexus.StandaloneServer.Services
             }
 
             amount = (long)Math.Max(1, amount * GameData.ExperienceRate);
+
+            if (ServerHub.Events != null &&
+                ServerHub.Events.HasEffect(EventEffect.World_Exp_2x))
+            {
+                amount *= 2;
+            }
+
             account.experience += amount;
             int newLevel = LevelForExperience(account.experience);
             int gained = Math.Max(0, newLevel - account.level);

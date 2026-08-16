@@ -78,6 +78,32 @@ namespace TidalNexus.StandaloneServer.Services
         public bool IsRunning => _active != null;
         public Kind Running => _active != null ? _mode.Kind : Kind.None;
 
+        private static readonly EventEffect[] BuffedEvent =
+        {
+            EventEffect.BZ_Fame_2x,
+            EventEffect.World_Exp_2x,
+            EventEffect.BZ_No_FriendlyFire,
+        };
+
+        private static readonly EventEffect[] NoEffects = new EventEffect[0];
+
+        public static EventEffect[] EffectsOf(Kind kind)
+        {
+            switch (kind)
+            {
+                case Kind.Beacon:
+                case Kind.Kraken:
+                    return BuffedEvent;
+                default:
+                    return NoEffects;
+            }
+        }
+
+        public bool HasEffect(EventEffect effect)
+        {
+            return IsRunning && System.Array.IndexOf(EffectsOf(Running), effect) >= 0;
+        }
+
         public void Tick(float deltaTime)
         {
             if (ServerHub.Runner == null || !WorldIsLive)
@@ -331,7 +357,13 @@ namespace TidalNexus.StandaloneServer.Services
             _mode.Begin();
             PublishTimer();
 
-            ServerLog.Info($"{_mode.Kind} event started for {(int)_timer}s");
+            EventEffect[] effects = EffectsOf(_mode.Kind);
+            string buffs = effects.Length == 0
+                ? "none"
+                : string.Join(", ", System.Array.ConvertAll(effects, e => e.ToString()));
+
+            ServerLog.Info(
+                $"{_mode.Kind} event started for {(int)_timer}s, effects: {buffs}");
             AdminService.Broadcast($"{_mode.Label} has begun.");
         }
 
