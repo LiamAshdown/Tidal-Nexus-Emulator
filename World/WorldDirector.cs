@@ -145,6 +145,11 @@ namespace TidalNexus.StandaloneServer
             ApplyPlayerDamage(delta);
         }
 
+        private static bool InStation(Player player)
+        {
+            return player != null && player.health != null && player.health.inSafeArea;
+        }
+
         private Player TopAttacker(NpcState state)
         {
             List<NPCBehaviour.Attackers> attackers = state.Npc.attackers;
@@ -161,6 +166,11 @@ namespace TidalNexus.StandaloneServer
             foreach (NPCBehaviour.Attackers entry in attackers)
             {
                 if (entry == null || entry.player == null || entry.damage <= bestDamage)
+                {
+                    continue;
+                }
+
+                if (InStation(entry.player))
                 {
                     continue;
                 }
@@ -258,7 +268,7 @@ namespace TidalNexus.StandaloneServer
                 float leash = ClampedAggroRadius(state) * Mathf.Max(1f, LeashMultiplier);
                 bool nearHome = Vector3.Distance(state.Position, state.Home) <= HomeLeash;
 
-                if (alive && nearHome &&
+                if (alive && nearHome && !InStation(state.Target) &&
                     Vector3.Distance(state.Target.transform.position, state.Position) <= leash)
                 {
                     return;
@@ -285,6 +295,11 @@ namespace TidalNexus.StandaloneServer
 
             foreach (Player player in _players)
             {
+                if (InStation(player))
+                {
+                    continue;
+                }
+
                 float distance = Vector3.Distance(state.Position, player.transform.position);
                 if (distance <= radius && distance < bestDistance)
                 {

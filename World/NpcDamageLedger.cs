@@ -90,6 +90,12 @@ namespace TidalNexus.StandaloneServer
                     continue;
                 }
 
+                if (entry.player.health != null && entry.player.health.inSafeArea)
+                {
+                    npc.attackers.RemoveAt(i);
+                    continue;
+                }
+
                 entry.timer -= delta;
                 if (entry.timer <= 0f)
                 {
