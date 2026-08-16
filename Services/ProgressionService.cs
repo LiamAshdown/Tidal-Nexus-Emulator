@@ -16,14 +16,6 @@ namespace TidalNexus.StandaloneServer.Services
         public int LevelForExperience(long experience) =>
             GameData.LevelForExperience(experience);
 
-        public void LevelProgress(Account account, out long into, out long span)
-        {
-            long floor = ExperienceForLevel(account.level);
-            long ceiling = ExperienceForLevel(Math.Min(account.level + 1, MaxLevel));
-            into = Math.Max(0, account.experience - floor);
-            span = Math.Max(1, ceiling - floor);
-        }
-
         public int AwardExperience(Account account, long amount)
         {
             if (account == null || amount <= 0)
@@ -51,12 +43,9 @@ namespace TidalNexus.StandaloneServer.Services
 
         public void ApplyLevelStats(Account account)
         {
-            int baseHull = 3000 + (account.level - 1) * 130;
-            int baseShield = 3000 + (account.level - 1) * 130;
-
-            account.hullMax = baseHull + account.hpx * 250;
-            account.shieldMax = baseShield + account.spx * 250;
-            account.cargoMax = 500 + account.level * 15;
+            account.hullMax = ShipStats.AccountHullMax(account.level, account.hpx);
+            account.shieldMax = ShipStats.AccountShieldMax(account.level, account.spx);
+            account.cargoMax = ShipStats.AccountCargoMax(account.level);
 
             account.hull = Math.Min(account.hull, account.hullMax);
             account.shield = Math.Min(account.shield, account.shieldMax);

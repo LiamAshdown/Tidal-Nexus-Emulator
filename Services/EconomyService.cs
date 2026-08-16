@@ -71,12 +71,6 @@ namespace TidalNexus.StandaloneServer.Services
             return station;
         }
 
-        public long PriceOf(string itemId)
-        {
-            CollectableMaterialData material = GameData.Material(itemId);
-            return material != null && material.buyPrice > 0 ? material.buyPrice : DefaultPrice;
-        }
-
         public long SellValue(string itemId, int count, StationData station = null)
         {
             CollectableMaterialData material = GameData.Material(itemId);
