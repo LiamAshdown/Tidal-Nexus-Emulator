@@ -505,7 +505,7 @@ namespace TidalNexus.StandaloneServer.Services
                     ReferenceEquals(killerAccount, victimAccount) ? null : killerAccount,
                     victimAccount);
 
-                victimAccount.cargo.Clear();
+                LoseCargo(victimAccount);
                 AccountStore.MarkDirty(victimAccount);
                 StopFiring(victimRef);
                 ClearAttackersOf(victimRef);
@@ -625,6 +625,58 @@ namespace TidalNexus.StandaloneServer.Services
             ServerLog.Info($"{account.nickname} respawned at {home}");
         }
 
+        private static void LoseCargo(Account account)
+        {
+            if (account?.cargo == null || account.cargo.Count == 0)
+            {
+                return;
+            }
+
+            if (!HasTradeModule(account))
+            {
+                account.cargo.Clear();
+                return;
+            }
+
+            for (int i = account.cargo.Count - 1; i >= 0; i--)
+            {
+                InventoryStack stack = account.cargo[i];
+                int kept = stack != null ? stack.count / 2 : 0;
+
+                if (kept <= 0)
+                {
+                    account.cargo.RemoveAt(i);
+                    continue;
+                }
+
+                stack.count = kept;
+            }
+
+            ServerLog.Info(
+                $"{account.nickname} kept {account.CargoUsed} units - trade module");
+        }
+
+        private static bool HasTradeModule(Account account)
+        {
+            List<ExtraData> catalogue = GameData.Data?.extraDatas;
+            if (catalogue == null || account.equippedExtras == null)
+            {
+                return false;
+            }
+
+            foreach (int index in account.equippedExtras)
+            {
+                if (index >= 0 && index < catalogue.Count &&
+                    catalogue[index] != null &&
+                    catalogue[index].type == ExtraData.ExtraType.TradeModule)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private static void SetPlayType(PlayerRef player, Enums.PlayType type)
         {
             NetworkObject obj = WorldLookup.ObjectOf(player);
@@ -653,7 +705,7 @@ namespace TidalNexus.StandaloneServer.Services
 
             ServerHub.Events?.NoteKill(null, account);
 
-            account.cargo.Clear();
+            LoseCargo(account);
             AccountStore.MarkDirty(account);
 
             StopFiring(victim);

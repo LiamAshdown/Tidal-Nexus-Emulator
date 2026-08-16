@@ -299,6 +299,34 @@ namespace TidalNexus.StandaloneServer.Services
             RefreshDerivedStats(obj, account);
         }
 
+        private static void FitExtras(Player player, Account account)
+        {
+            List<ExtraData> catalogue = GameData.Data?.extraDatas;
+            if (catalogue == null || player.extras == null)
+            {
+                return;
+            }
+
+            player.extras.items ??= new List<ExtraData.ExtraSlotItem>();
+            player.extras.items.Clear();
+
+            foreach (int index in account.equippedExtras)
+            {
+                if (index < 0 || index >= catalogue.Count || catalogue[index] == null)
+                {
+                    continue;
+                }
+
+                player.extras.items.Add(new ExtraData.ExtraSlotItem
+                {
+                    data = catalogue[index],
+                    amount = 1,
+                    state = account.activeExtras == null ||
+                            account.activeExtras.Contains((int)catalogue[index].type),
+                });
+            }
+        }
+
         private static void RefreshDerivedStats(NetworkObject obj, Account account)
         {
             Player player = obj.GetComponentInChildren<Player>();
@@ -306,6 +334,8 @@ namespace TidalNexus.StandaloneServer.Services
             {
                 return;
             }
+
+            FitExtras(player, account);
 
             try
             {

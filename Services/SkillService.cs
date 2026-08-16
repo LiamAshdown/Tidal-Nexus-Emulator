@@ -24,7 +24,7 @@ namespace TidalNexus.StandaloneServer.Services
 
         private static float BatteryFraction => ServerHub.Config?.BatteryFraction ?? 1f;
 
-        public static float DamageBoost => ServerHub.Config?.DamageBoost ?? 1.5f;
+        public static float DamageBoost => ServerHub.Config?.DamageBoost ?? 1.3f;
 
         public bool Use(Account account, PlayerRef player, int slot, NetworkId target)
         {
@@ -125,6 +125,7 @@ namespace TidalNexus.StandaloneServer.Services
 
                 case SkillType.Cleanse:
 
+                    self.iceStacks?.Clear();
                     self.networkValues.iceStacks = 0;
                     return true;
 

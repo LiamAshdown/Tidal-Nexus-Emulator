@@ -20,7 +20,7 @@ namespace TidalNexus.StandaloneServer
         public float CaptchaInterval;
 
         public float BatteryFraction = 1f;
-        public float DamageBoost = 1.5f;
+        public float DamageBoost = 1.3f;
         public float ExtraDrain = 0.1f;
         public float AutoCollectRange = 15f;
 

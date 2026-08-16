@@ -514,6 +514,14 @@ namespace TidalNexus.StandaloneServer.Services
                 return MerchantResult.UnknownItem;
             }
 
+            if (!OnSale(item))
+            {
+                ServerLog.Warn(
+                    $"{account.nickname} tried to buy {item.name} ({equipmentId}), "
+                    + "which the merchant does not stock");
+                return MerchantResult.UnknownItem;
+            }
+
             int level = GameData.LevelForExperience(account.experience);
             if (item.unlockLevel > level)
             {
@@ -580,6 +588,25 @@ namespace TidalNexus.StandaloneServer.Services
                 $"({perPack * amount} rounds) for {cost} {currency}");
 
             return MerchantResult.Ok;
+        }
+
+        private static bool OnSale(EquipmentData item)
+        {
+            List<EquipmentData> stock = GameData.Data?.merchantData?.items;
+            if (stock == null || stock.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (EquipmentData sold in stock)
+            {
+                if (sold == item)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static EquipmentData FindEquipment(int equipmentId)

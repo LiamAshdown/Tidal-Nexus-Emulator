@@ -18,6 +18,7 @@ namespace TidalNexus.StandaloneServer.Services
         public sealed class Carry
         {
             public float Fraction;
+            public int LastCargo = -1;
         }
 
         private float _clock;
@@ -43,6 +44,11 @@ namespace TidalNexus.StandaloneServer.Services
                 return false;
             }
 
+            if (type == ExtraData.ExtraType.RepairDrone)
+            {
+                return state && StartRepairBoost(account, player);
+            }
+
             bool changed = state
                 ? !account.activeExtras.Contains((int)type) && Add(account, type)
                 : account.activeExtras.Remove((int)type);
@@ -65,7 +71,45 @@ namespace TidalNexus.StandaloneServer.Services
             return true;
         }
 
-        private static void ApplyFlags(Account account, PlayerRef player)
+        private static bool StartRepairBoost(Account account, PlayerRef player)
+        {
+            NetworkObject obj = WorldLookup.ObjectOf(player);
+            Player self = obj != null ? obj.GetComponentInChildren<Player>() : null;
+            if (self == null)
+            {
+                return false;
+            }
+
+            try
+            {
+                self.StartCoroutine(self.RepairBoost());
+            }
+            catch (System.Exception e)
+            {
+                ServerLog.Warn($"could not start repair boost: {e.Message}");
+                return false;
+            }
+
+            ServerLog.Info($"{account.nickname} triggered a repair boost");
+            return true;
+        }
+
+        private static bool DrawsEnergy(ExtraData.ExtraType type)
+        {
+            switch (type)
+            {
+                case ExtraData.ExtraType.AutoCollect:
+                case ExtraData.ExtraType.Sentry:
+                case ExtraData.ExtraType.HullConverter:
+                case ExtraData.ExtraType.ShieldConverter:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        public static void ApplyFlags(Account account, PlayerRef player)
         {
             NetworkObject obj = WorldLookup.ObjectOf(player);
             var values = obj != null ? obj.GetComponentInChildren<PlayerNetworkValues>() : null;
@@ -78,8 +122,12 @@ namespace TidalNexus.StandaloneServer.Services
             {
                 values.isSentryActive =
                     account.activeExtras.Contains((int)ExtraData.ExtraType.Sentry);
+
+                values.isSentryEquipped =
+                    FittedOfType(account, ExtraData.ExtraType.Sentry) != null;
+
                 values.isRepairing =
-                    account.activeExtras.Contains((int)ExtraData.ExtraType.RepairDrone);
+                    FittedOfType(account, ExtraData.ExtraType.RepairDrone) != null;
             }
             catch (System.Exception e)
             {
@@ -105,16 +153,11 @@ namespace TidalNexus.StandaloneServer.Services
                 Account account = session.Account;
                 PlayerRef player = session.Player;
 
-                if (account.activeExtras.Count == 0)
-                {
-                    continue;
-                }
+                ApplyFlags(account, player);
 
-                Spend(session, elapsed);
-
-                if (account.activeExtras.Count == 0)
+                if (account.activeExtras.Count > 0)
                 {
-                    continue;
+                    Spend(session, elapsed);
                 }
 
                 if (account.activeExtras.Contains((int)ExtraData.ExtraType.AutoCollect))
@@ -122,7 +165,7 @@ namespace TidalNexus.StandaloneServer.Services
                     AutoCollect(account, player);
                 }
 
-                Convert(account, player);
+                Convert(session, player);
             }
         }
 
@@ -131,9 +174,23 @@ namespace TidalNexus.StandaloneServer.Services
             Account account = session.Account;
             PlayerRef player = session.Player;
 
+            int draining = 0;
+            foreach (int type in account.activeExtras)
+            {
+                if (DrawsEnergy((ExtraData.ExtraType)type))
+                {
+                    draining++;
+                }
+            }
+
+            if (draining == 0)
+            {
+                return;
+            }
+
             Carry carry = session.State<Carry>();
 
-            float carried = carry.Fraction + Drain * account.activeExtras.Count * elapsed;
+            float carried = carry.Fraction + Drain * draining * elapsed;
 
             int whole = Mathf.FloorToInt(carried);
             carry.Fraction = carried - whole;
@@ -147,7 +204,8 @@ namespace TidalNexus.StandaloneServer.Services
 
             if (account.energy <= 0)
             {
-                account.activeExtras.Clear();
+                account.activeExtras.RemoveAll(
+                    type => DrawsEnergy((ExtraData.ExtraType)type));
                 ApplyFlags(account, player);
                 ServerLog.Info($"{account.nickname} ran out of energy - extras off");
             }
@@ -194,11 +252,23 @@ namespace TidalNexus.StandaloneServer.Services
             }
         }
 
-        private static void Convert(Account account, PlayerRef player)
+        private static void Convert(PlayerSession session, PlayerRef player)
         {
+            Account account = session.Account;
+            Carry carry = session.State<Carry>();
+
+            int used = account.CargoUsed;
+            int previous = carry.LastCargo;
+            carry.LastCargo = used;
+
+            if (previous < 0 || used <= previous || account.activeExtras.Count == 0)
+            {
+                return;
+            }
+
             NetworkObject obj = WorldLookup.ObjectOf(player);
             Player self = obj != null ? obj.GetComponentInChildren<Player>() : null;
-            if (self?.health == null || account.cargo.Count == 0)
+            if (self?.health == null)
             {
                 return;
             }
@@ -219,18 +289,6 @@ namespace TidalNexus.StandaloneServer.Services
                     continue;
                 }
 
-                InventoryStack stack = account.cargo[0];
-                if (stack == null || stack.count <= 0)
-                {
-                    continue;
-                }
-
-                stack.count--;
-                if (stack.count <= 0)
-                {
-                    account.cargo.Remove(stack);
-                }
-
                 int restored = Mathf.Max(1, Mathf.RoundToInt(max * converter.repairPercentage));
 
                 if (hull)
@@ -245,7 +303,6 @@ namespace TidalNexus.StandaloneServer.Services
                 }
 
                 AccountStore.MarkDirty(account);
-                Wire.SendCargo(player, account);
             }
         }
 

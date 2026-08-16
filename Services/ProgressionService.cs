@@ -288,6 +288,33 @@ namespace TidalNexus.StandaloneServer.Services
             }
         }
 
+        private static bool SlotTypeTaken(Account account, int index)
+        {
+            List<ExtraData> catalogue = GameData.Data?.extraDatas;
+            if (catalogue == null || index < 0 || index >= catalogue.Count)
+            {
+                return false;
+            }
+
+            ExtraData wanted = catalogue[index];
+            if (wanted == null)
+            {
+                return false;
+            }
+
+            foreach (int fitted in account.equippedExtras)
+            {
+                if (fitted >= 0 && fitted < catalogue.Count &&
+                    catalogue[fitted] != null &&
+                    catalogue[fitted].slotType == wanted.slotType)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public bool TryEquipExtra(Account account, int index)
         {
             if (!account.extras.Contains(index) || account.equippedExtras.Contains(index))
@@ -297,6 +324,11 @@ namespace TidalNexus.StandaloneServer.Services
 
             int slots = 2 + account.level / 20;
             if (account.equippedExtras.Count >= slots)
+            {
+                return false;
+            }
+
+            if (SlotTypeTaken(account, index))
             {
                 return false;
             }
