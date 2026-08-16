@@ -31,6 +31,8 @@ namespace TidalNexus.StandaloneServer
 
         public float NpcAttackRange = 20f;
 
+        public int MaxNpcAttackers = 5;
+
         public float BeaconCaptureRate = 4f;
         public float BeaconPointRate = 1f;
 
@@ -81,6 +83,8 @@ namespace TidalNexus.StandaloneServer
                 (int)ParseFloat(Env("TN_STATIONDAMAGE", null), config.StationDamage);
             config.NpcAttackRange =
                 ParseFloat(Env("TN_NPCATTACKRANGE", null), config.NpcAttackRange);
+            config.MaxNpcAttackers =
+                (int)ParseFloat(Env("TN_MAXNPCATTACKERS", null), config.MaxNpcAttackers);
             config.BeaconCaptureRate =
                 ParseFloat(Env("TN_BEACONCAPTURERATE", null), config.BeaconCaptureRate);
             config.BeaconPointRate =

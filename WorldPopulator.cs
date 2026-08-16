@@ -1,3 +1,4 @@
+using Fusion;
 using UnityEngine;
 
 namespace TidalNexus.StandaloneServer
@@ -260,7 +261,7 @@ namespace TidalNexus.StandaloneServer
 
             foreach (Area area in all)
             {
-                if (area == null)
+                if (area == null || area.layer != Enums.NetworkLayerType.WorldMap)
                 {
                     continue;
                 }

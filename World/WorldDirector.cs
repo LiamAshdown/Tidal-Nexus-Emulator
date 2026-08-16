@@ -254,6 +254,37 @@ namespace TidalNexus.StandaloneServer
             }
         }
 
+        private static int MaxAttackers =>
+            ServerHub.Config != null ? ServerHub.Config.MaxNpcAttackers : 5;
+
+        private bool AtAttackerCap(Player player, NpcState asking)
+        {
+            int cap = MaxAttackers;
+            if (cap <= 0)
+            {
+                return false;
+            }
+
+            int engaged = 0;
+
+            foreach (KeyValuePair<NPCBehaviour, NpcState> pair in _states)
+            {
+                NpcState other = pair.Value;
+
+                if (other == asking || other.Npc == null || other.Target != player)
+                {
+                    continue;
+                }
+
+                if (++engaged >= cap)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private void Acquire(NpcState state)
         {
             NPCData data = state.Npc.data;
@@ -295,7 +326,7 @@ namespace TidalNexus.StandaloneServer
 
             foreach (Player player in _players)
             {
-                if (InStation(player))
+                if (InStation(player) || AtAttackerCap(player, state))
                 {
                     continue;
                 }
