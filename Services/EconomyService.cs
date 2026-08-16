@@ -727,9 +727,9 @@ namespace TidalNexus.StandaloneServer.Services
                 case "PhotonMineAmmo2": return Stack(ref account.photonMine2, rounds);
                 case "PhotonMineAmmo3": return Stack(ref account.photonMine3, rounds);
 
-                case "DecoyAmmo1": return Stack(ref account.decoy1, rounds);
-                case "DecoyAmmo2": return Stack(ref account.decoy2, rounds);
-                case "DecoyAmmo3": return Stack(ref account.decoy3, rounds);
+                case "Decoy1": return Stack(ref account.decoy1, rounds);
+                case "Decoy2": return Stack(ref account.decoy2, rounds);
+                case "Decoy3": return Stack(ref account.decoy3, rounds);
 
                 default: return false;
             }
