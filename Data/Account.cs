@@ -78,12 +78,6 @@ namespace TidalNexus.StandaloneServer.Data
         public long shieldSlots = 1000000000L;
         public long turbineSlots = 1000000000L;
 
-        public static int FittedInSlotZero(long slots)
-        {
-            string digits = slots.ToString();
-            return digits.Length > 0 ? digits[0] - '0' : 0;
-        }
-
         public int energy = 100;
 
         public int ammoIndex;

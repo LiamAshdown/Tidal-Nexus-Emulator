@@ -589,6 +589,7 @@ namespace TidalNexus.StandaloneServer.Services
             }
 
             ServerHub.Progression?.ApplyLevelStats(account);
+            SetPlayType(player, Enums.PlayType.Default);
 
             Health health = WorldLookup.HealthOf(obj);
             if (health != null)
@@ -624,6 +625,22 @@ namespace TidalNexus.StandaloneServer.Services
             ServerLog.Info($"{account.nickname} respawned at {home}");
         }
 
+        private static void SetPlayType(PlayerRef player, Enums.PlayType type)
+        {
+            NetworkObject obj = WorldLookup.ObjectOf(player);
+            var values = obj != null
+                ? obj.GetComponentInChildren<PlayerNetworkValues>()
+                : null;
+
+            if (values == null)
+            {
+                ServerLog.Warn($"could not set play type {type} for {player.PlayerId}");
+                return;
+            }
+
+            values.playType = type;
+        }
+
         public void PlayerDied(PlayerRef victim)
         {
             Account account = ServerHub.AccountFor(victim);
@@ -642,6 +659,7 @@ namespace TidalNexus.StandaloneServer.Services
             StopFiring(victim);
             ClearAttackersOf(victim);
             Wire.SendCargo(victim, account);
+            SetPlayType(victim, Enums.PlayType.Dead);
 
             ServerLog.Info($"{account.nickname} was killed");
         }

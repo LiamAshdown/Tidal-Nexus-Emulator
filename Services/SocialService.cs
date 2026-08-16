@@ -337,6 +337,63 @@ namespace TidalNexus.StandaloneServer.Services
             AccountStore.SaveClan(clan);
         }
 
+        private static bool BannerFits(string[] parts, out string refusal)
+        {
+            refusal = null;
+
+            DataManager data = GameData.Data;
+            if (data == null)
+            {
+                refusal = "no item catalogue to check against";
+                return false;
+            }
+
+            var slot = new int[parts.Length];
+
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (!int.TryParse(parts[i].Trim(), out slot[i]) || slot[i] < 0)
+                {
+                    refusal = $"slot {i} is \"{parts[i]}\"";
+                    return false;
+                }
+            }
+
+            int[] sizes =
+            {
+                data.clanBannerStyles?.Count ?? 0,
+                data.clanMainColors?.Count ?? 0,
+                data.clanPatternStyles?.Count ?? 0,
+                data.clanPatternColors?.Count ?? 0,
+                data.clanEmblemStyles?.Count ?? 0,
+                data.clanEmblemColors?.Count ?? 0,
+                int.MaxValue,
+                data.clanOrnamentColors?.Count ?? 0,
+            };
+
+            for (int i = 0; i < sizes.Length; i++)
+            {
+                if (i != OrnamentSlot && slot[i] >= sizes[i])
+                {
+                    refusal = $"slot {i} is {slot[i]} of {sizes[i]}";
+                    return false;
+                }
+            }
+
+            ClanBannerStyleData style = data.clanBannerStyles[slot[0]];
+            int ornaments = style?.ornaments?.Count ?? 0;
+
+            if (slot[OrnamentSlot] >= ornaments)
+            {
+                refusal = $"ornament {slot[OrnamentSlot]} of {ornaments} for style {slot[0]}";
+                return false;
+            }
+
+            return true;
+        }
+
+        private const int OrnamentSlot = 6;
+
         public void SetClanBanner(Account actor, string design)
         {
             Clan clan = AccountStore.FindClan(actor?.clanTag);
@@ -348,6 +405,12 @@ namespace TidalNexus.StandaloneServer.Services
             string[] parts = (design ?? string.Empty).Split(',');
             if (parts.Length != 8)
             {
+                return;
+            }
+
+            if (!BannerFits(parts, out string refusal))
+            {
+                ServerLog.Warn($"{actor.nickname} sent an unusable clan banner: {refusal}");
                 return;
             }
 

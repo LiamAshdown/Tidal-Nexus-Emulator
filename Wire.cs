@@ -26,6 +26,7 @@ namespace TidalNexus.StandaloneServer
             SendExtras(player, account);
             SendMissionWindow(player, account);
             SendFactionBalance(player);
+            SendClanWars(player, account);
 
             if (!string.IsNullOrEmpty(account.clanTag))
             {

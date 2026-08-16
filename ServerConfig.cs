@@ -29,6 +29,8 @@ namespace TidalNexus.StandaloneServer
 
         public int StationDamage = 120;
 
+        public float NpcAttackRange = 20f;
+
         public float BeaconCaptureRate = 4f;
         public float BeaconPointRate = 1f;
 
@@ -77,6 +79,8 @@ namespace TidalNexus.StandaloneServer
             config.SentryRange = ParseFloat(Env("TN_SENTRYRANGE", null), config.SentryRange);
             config.StationDamage =
                 (int)ParseFloat(Env("TN_STATIONDAMAGE", null), config.StationDamage);
+            config.NpcAttackRange =
+                ParseFloat(Env("TN_NPCATTACKRANGE", null), config.NpcAttackRange);
             config.BeaconCaptureRate =
                 ParseFloat(Env("TN_BEACONCAPTURERATE", null), config.BeaconCaptureRate);
             config.BeaconPointRate =
@@ -162,6 +166,9 @@ namespace TidalNexus.StandaloneServer
                         break;
                     case "-stationdamage":
                         config.StationDamage = (int)ParseFloat(value, config.StationDamage);
+                        break;
+                    case "-npcattackrange":
+                        config.NpcAttackRange = ParseFloat(value, config.NpcAttackRange);
                         break;
                     case "-beaconcapturerate":
                         config.BeaconCaptureRate =

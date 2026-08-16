@@ -112,7 +112,7 @@ namespace TidalNexus.StandaloneServer.Core
                 return 0;
             }
 
-            long rank = (((long)count * perMille + 999) / 1000) - 1;
+            long rank = ((long)count * perMille / 1000L) - 1;
 
             if (rank < 0)
             {

@@ -20,14 +20,26 @@ namespace TidalNexus.StandaloneServer
                 invited = new List<Player>(),
             };
 
+            bool named = false;
+
             foreach (Account member in members)
             {
+                bool isLeader = leader != null && member.id == leader.id;
+                named |= isLeader;
+
                 party.players.Add(new PartyMember
                 {
                     id = member.id,
                     nickname = member.nickname,
-                    isLeader = leader != null && member.id == leader.id,
+                    isLeader = isLeader,
                 });
+            }
+
+            if (party.players.Count > 0 && !named)
+            {
+                ServerLog.Warn("not sending a party whose leader is not among its members - "
+                    + "the arena panel reads that leader every frame and would throw");
+                return;
             }
 
             ReliableChannel.SendJson(player, Enums.ReliableData.PartyData, party);
@@ -42,6 +54,8 @@ namespace TidalNexus.StandaloneServer
         {
             ReliableChannel.Send(player, Enums.ReliableData.PartyPing, pingJson);
         }
+
+        public static readonly Vector3 NotInTheWorld = new Vector3(2000f, 2000f, 2000f);
 
         public static void SendPartyPositions(PlayerRef player, IEnumerable<Account> members)
         {
@@ -58,20 +72,14 @@ namespace TidalNexus.StandaloneServer
             foreach (Account member in members)
             {
                 PlayerRef reference = ServerHub.RefFor(member);
-                if (reference == PlayerRef.None)
-                {
-                    continue;
-                }
 
-                NetworkObject obj = ServerHub.Runner.GetPlayerObject(reference);
-                if (obj == null)
-                {
-                    continue;
-                }
+                NetworkObject obj = reference != PlayerRef.None
+                    ? ServerHub.Runner.GetPlayerObject(reference)
+                    : null;
 
                 payload._items.Add(new PlayerRPC.PartyPositionItem
                 {
-                    pos = obj.transform.position,
+                    pos = obj != null ? obj.transform.position : NotInTheWorld,
                     name = member.nickname,
                 });
             }

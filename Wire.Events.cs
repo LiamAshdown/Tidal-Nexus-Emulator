@@ -71,14 +71,20 @@ namespace TidalNexus.StandaloneServer
         {
             var data = new EventRoyale.RoyaleStats();
 
-            foreach (Services.EventService.Contribution c in Rows(scores))
+            List<Services.EventService.Contribution> byPoints =
+                new List<Services.EventService.Contribution>(Rows(scores));
+            byPoints.Sort((x, y) => y.Points.CompareTo(x.Points));
+
+            int placing = 1;
+
+            foreach (Services.EventService.Contribution c in byPoints)
             {
                 data.stats.Add(new EventRoyale.RoyaleStat
                 {
                     playerName = c.Name,
                     clanTag = ClanTag(c),
                     faction = c.Faction,
-                    rank = 0,
+                    rank = placing++,
                     damage = c.Damage,
                     kills = c.Kills,
                     exp = c.Points,

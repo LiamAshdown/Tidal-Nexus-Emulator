@@ -53,24 +53,29 @@ namespace TidalNexus.StandaloneServer
             {
                 ExtraData data = catalogue[index];
 
-                int owned = 0;
-                foreach (int held in account.extras)
-                {
-                    if (held == index)
-                    {
-                        owned++;
-                    }
-                }
-
                 slots.items.Add(new ExtraData.ExtraSlotItemSerializable
                 {
                     id = data.equipmentID,
-                    amount = Math.Max(1, owned),
+                    amount = fitted ? 1 : Spare(account, index),
                     state = fitted && account.activeExtras.Contains((int)data.type) ? 1 : 0,
                 });
             }
 
             return slots;
+        }
+
+        private static int Spare(Account account, int index)
+        {
+            int owned = 0;
+            foreach (int held in account.extras)
+            {
+                if (held == index)
+                {
+                    owned++;
+                }
+            }
+
+            return Math.Max(1, owned - (account.equippedExtras.Contains(index) ? 1 : 0));
         }
     }
 }

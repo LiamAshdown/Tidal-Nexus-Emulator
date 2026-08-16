@@ -34,6 +34,9 @@ namespace TidalNexus.StandaloneServer
 
         private const float NpcAttackInterval = 1.5f;
 
+        private static float NpcAttackRange =>
+            ServerHub.Config?.NpcAttackRange ?? Core.WeaponRange.Cannon;
+
         private const float MaxAggroRadius = 70f;
 
         private const float FallbackAggroRadius = 40f;
@@ -475,7 +478,7 @@ namespace TidalNexus.StandaloneServer
             }
 
             float distance = Enums.Distance2D(state.Position, state.Target.transform.position);
-            if (distance > ClampedAggroRadius(state))
+            if (distance > NpcAttackRange)
             {
                 return;
             }

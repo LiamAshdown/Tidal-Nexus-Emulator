@@ -266,10 +266,12 @@ namespace TidalNexus.StandaloneServer.Services
                     continue;
                 }
 
-                if (!byFaction.TryGetValue(a.faction, out List<Account> members))
+                int faction = (int)AccountService.CoreFaction(a.faction);
+
+                if (!byFaction.TryGetValue(faction, out List<Account> members))
                 {
                     members = new List<Account>();
-                    byFaction[a.faction] = members;
+                    byFaction[faction] = members;
                 }
 
                 members.Add(a);
