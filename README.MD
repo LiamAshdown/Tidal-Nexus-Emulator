@@ -80,4 +80,7 @@ _Combat against an NPC, with the target list, mission tracker and chat all live.
 ![Missions](screenshots/missions.png)
 _Mission window showing a Mission completed_
 
+![Trading](screenshots/trade.png)
+_Trade window: ability to sell the player's ore_
+
 What this has taught me is that LLMs have completely changed the game. What would have taken me 6+ months was achieved in under _2 days_.
