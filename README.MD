@@ -77,4 +77,7 @@ _Docked at Nixalon S-1, with repairing, the merchant, station trading and design
 ![Fighting an NPC](screenshots/attacking.png)
 _Combat against an NPC, with the target list, mission tracker and chat all live._
 
+![Missions](screenshots/missions.png)
+_Mission window showing a Mission completed_
+
 What this has taught me is that LLMs have completely changed the game. What would have taken me 6+ months was achieved in under _2 days_.
