@@ -101,6 +101,12 @@ namespace TidalNexus.StandaloneServer.Services
                     continue;
                 }
 
+                if (InSafeArea(shooterObj))
+                {
+                    Disengage(session, engagement);
+                    continue;
+                }
+
                 if (!InCannonRange(shooterObj, engagement.Target))
                 {
                     ServerHub.RpcFor(shooter)?.RPC_SendOutOfRange();
@@ -248,8 +254,19 @@ namespace TidalNexus.StandaloneServer.Services
             }
         }
 
+        public static bool InSafeArea(NetworkObject who)
+        {
+            Health health = WorldLookup.HealthOf(who);
+            return health != null && health.inSafeArea;
+        }
+
         public bool MayAttack(PlayerRef shooter, NetworkObject target)
         {
+            if (InSafeArea(WorldLookup.ObjectOf(shooter)))
+            {
+                return false;
+            }
+
             var targetPlayer = target.GetComponent<Player>();
             if (targetPlayer == null)
             {
