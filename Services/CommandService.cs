@@ -610,7 +610,7 @@ namespace TidalNexus.StandaloneServer.Services
                 "null",
                 "Server",
                 message,
-                ChatChannel.Log,
+                ChatChannel.ModeratorMessage,
                 string.Empty,
                 string.Empty,
                 string.Empty,
