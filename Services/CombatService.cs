@@ -81,6 +81,8 @@ namespace TidalNexus.StandaloneServer.Services
 
             ServerHub.SnapshotSessions(_players);
 
+            Regenerate();
+
             foreach (PlayerSession session in _players)
             {
 
@@ -623,6 +625,79 @@ namespace TidalNexus.StandaloneServer.Services
             AccountStore.MarkDirty(account);
 
             ServerLog.Info($"{account.nickname} respawned at {home}");
+        }
+
+        private const float FallbackHullRegen = 0.001f;
+        private const float FallbackShieldRegen = 0.004f;
+
+        private float _nextRegen;
+
+        private void Regenerate()
+        {
+            if (_clock < _nextRegen)
+            {
+                return;
+            }
+
+            _nextRegen = _clock + 1f;
+
+            NetworkDamageControll rates = NetworkDamageControll.Instance;
+            float hullRate = rates != null ? rates.hullRepairPerTick : FallbackHullRegen;
+            float shieldRate = rates != null ? rates.shieldRepairPerTick : FallbackShieldRegen;
+
+            foreach (PlayerSession session in _players)
+            {
+                Account account = session.Account;
+                Health health = WorldLookup.HealthOf(session.Player);
+
+                if (account == null || !WorldLookup.IsAlive(health))
+                {
+                    continue;
+                }
+
+                int hull = health.hull;
+                int shield = health.shield;
+
+                if (hull < health.maxHull)
+                {
+                    int gained = Mathf.RoundToInt(health.maxHull * hullRate * RepairBoost(account));
+                    health.hull = Mathf.Min(health.maxHull, hull + Mathf.Max(1, gained));
+                    account.hull = health.hull;
+                }
+
+                if (shield < health.maxShield)
+                {
+                    int gained = Mathf.RoundToInt(health.maxShield * shieldRate);
+                    health.shield = Mathf.Min(health.maxShield, shield + Mathf.Max(1, gained));
+                    account.shield = health.shield;
+                }
+
+                if (health.hull != hull || health.shield != shield)
+                {
+                    AccountStore.MarkDirty(account);
+                }
+            }
+        }
+
+        private static float RepairBoost(Account account)
+        {
+            List<ExtraData> catalogue = GameData.Data?.extraDatas;
+            if (catalogue == null || account.equippedExtras == null)
+            {
+                return 1f;
+            }
+
+            foreach (int index in account.equippedExtras)
+            {
+                if (index >= 0 && index < catalogue.Count &&
+                    catalogue[index] is RepairDroneData drone &&
+                    drone.repairBoost > 0f)
+                {
+                    return drone.repairBoost;
+                }
+            }
+
+            return 1f;
         }
 
         private static void LoseCargo(Account account)
