@@ -114,12 +114,51 @@ namespace TidalNexus.StandaloneServer.Services
                 : (DaysOfWeek)(int)now.DayOfWeek;
         }
 
-        private static bool IsMaxBoat(Account account)
+        public static bool IsMaxBoat(Account account)
         {
-            return account.hullSlots == 7777777777L &&
-                   account.shieldSlots == 5555555555L &&
-                   account.turbineSlots == 5555555555L &&
-                   account.weaponSlots == 5555555555L;
+            if (account == null)
+            {
+                return false;
+            }
+
+            DataManager data = GameData.Data;
+            if (data == null)
+            {
+                return false;
+            }
+
+            return AllAtTopTier(account.hullSlots, data.hullDatas?.Count ?? 0)
+                && AllAtTopTier(account.shieldSlots, data.shieldDatas?.Count ?? 0)
+                && AllAtTopTier(account.turbineSlots, data.turbineDatas?.Count ?? 0)
+                && AllAtTopTier(account.weaponSlots, data.weaponDatas?.Count ?? 0);
+        }
+
+        private const int SlotDigits = 10;
+
+        private static bool AllAtTopTier(long slots, int tiers)
+        {
+            if (tiers <= 1)
+            {
+                return false;
+            }
+
+            string digits = slots.ToString();
+            if (digits.Length != SlotDigits)
+            {
+                return false;
+            }
+
+            char top = (char)('0' + tiers - 1);
+
+            foreach (char digit in digits)
+            {
+                if (digit != top)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

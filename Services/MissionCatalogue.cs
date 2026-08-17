@@ -355,10 +355,7 @@ namespace TidalNexus.StandaloneServer.Services
 
         private static bool IsMaxBoat(Account account)
         {
-            return account.hullSlots == 7777777777L &&
-                   account.shieldSlots == 5555555555L &&
-                   account.turbineSlots == 5555555555L &&
-                   account.weaponSlots == 5555555555L;
+            return Unlocks.IsMaxBoat(account);
         }
 
         public static int TargetOfObjective(MissionObjective objective)
